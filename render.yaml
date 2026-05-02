@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: rawi-novel-app
+    env: node
+    plan: free
+    buildCommand: npm install && npm run build && npm run db:push
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: rawi-db
+          property: connectionString
+      - key: OPENAI_API_KEY
+        sync: false
+
+databases:
+  - name: rawi-db
+    plan: free
+    databaseName: rawi
+    user: rawi_user
