@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>راوي — لوحة الرواية</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .novel-hero { display:flex; gap:28px; align-items:flex-start; margin-bottom:36px; flex-wrap:wrap; }
+    .novel-hero-cover { width:140px; flex-shrink:0; aspect-ratio:3/4; border-radius:16px; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,.15); }
+    .novel-hero-info { flex:1; min-width:200px; }
+    .char-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; }
+    .char-card { background:white; border:1px solid #e8e8e5; border-radius:16px; padding:18px; }
+    .char-role-badge { display:inline-block; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:600; background:rgba(200,117,57,.1); color:#C87539; margin-bottom:8px; }
+  </style>
+</head>
+<body>
+  <header id="mobile-header">
+    <a href="/index.html" style="font-family:Amiri,serif;font-size:22px;font-weight:700;color:#C87539;text-decoration:none">راوي</a>
+    <div id="mobile-user-menu"></div>
+  </header>
+
+  <div class="app-layout">
+    <aside id="sidebar"></aside>
+    <main class="main-area">
+      <div class="content-wrapper">
+        <div style="margin-bottom:16px">
+          <a href="/index.html" style="color:#888;font-size:13px;text-decoration:none;display:inline-flex;align-items:center;gap:6px">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+            روياتي
+          </a>
+        </div>
+
+        <div id="novel-header"><div class="loading-center"><div class="spinner"></div></div></div>
+
+        <div class="tab-bar">
+          <button class="tab-btn active" onclick="switchTab('chapters')" id="tab-chapters">الفصول</button>
+          <button class="tab-btn" onclick="switchTab('characters')" id="tab-characters">الشخصيات</button>
+          <button class="tab-btn" onclick="switchTab('ai')" id="tab-ai">✨ الذكاء الاصطناعي</button>
+        </div>
+
+        <div class="tab-panel active" id="panel-chapters">
+          <div id="chapters-container"><div class="loading-center"><div class="spinner"></div></div></div>
+        </div>
+        <div class="tab-panel" id="panel-characters">
+          <div id="characters-container"><div class="loading-center"><div class="spinner"></div></div></div>
+        </div>
+        <div class="tab-panel" id="panel-ai">
+          <div style="background:white;border-radius:20px;border:1px solid #e8e8e5;padding:28px;max-width:600px">
+            <h3 style="font-family:Amiri,serif;font-size:20px;margin-bottom:8px">✨ مولّد الحبكة الذكي</h3>
+            <p style="font-size:14px;color:#888;margin-bottom:20px">أدخل التصنيف والمحاور الرئيسية وسيقترح الذكاء الاصطناعي حبكة متكاملة</p>
+            <div class="form-group">
+              <label class="label">التصنيف</label>
+              <input class="input" id="ai-genre" placeholder="مثال: دراما، تاريخي، خيال علمي">
+            </div>
+            <div class="form-group">
+              <label class="label">المحور الرئيسي</label>
+              <input class="input" id="ai-theme" placeholder="مثال: الحب والفقدان، العدالة والانتقام">
+            </div>
+            <button class="btn btn-primary" onclick="generatePlot()" id="gen-plot-btn">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 8v4l3 3"/><path d="M18.5 2.5 22 6l-7 7"/></svg>
+              توليد الحبكة
+            </button>
+            <div id="plot-result" style="display:none;margin-top:24px;padding:20px;background:#FAF9F6;border-radius:14px;font-size:15px;line-height:1.9;white-space:pre-wrap;font-family:Amiri,serif"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <nav id="mobile-nav"></nav>
+  <div id="toast-container"></div>
+
+  <!-- Chapter Modal -->
+  <div class="modal-overlay" id="chapter-modal" onclick="if(event.target===this)closeModal('chapter-modal')">
+    <div class="modal-box">
+      <h2 class="modal-title" id="chapter-modal-title">فصل جديد</h2>
+      <input type="hidden" id="chapter-id">
+      <div class="form-group">
+        <label class="label">عنوان الفصل *</label>
+        <input class="input" id="chapter-title" placeholder="أدخل عنوان الفصل" required autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label class="label">ملخص الفصل</label>
+        <textarea class="input textarea" id="chapter-outline" placeholder="ما الذي سيحدث في هذا الفصل؟"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="saveChapter()" id="chapter-save-btn">حفظ</button>
+        <button class="btn btn-secondary" onclick="closeModal('chapter-modal')">إلغاء</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Character Modal -->
+  <div class="modal-overlay" id="char-modal" onclick="if(event.target===this)closeModal('char-modal')">
+    <div class="modal-box">
+      <h2 class="modal-title" id="char-modal-title">شخصية جديدة</h2>
+      <input type="hidden" id="char-id">
+      <div class="form-group">
+        <label class="label">اسم الشخصية *</label>
+        <input class="input" id="char-name" placeholder="أدخل الاسم" required autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label class="label">الدور</label>
+        <input class="input" id="char-role" placeholder="بطل، شرير، مساعد...">
+      </div>
+      <div class="form-group">
+        <label class="label">الصفات</label>
+        <input class="input" id="char-traits" placeholder="شجاع، حكيم، غامض...">
+      </div>
+      <div class="form-group">
+        <label class="label">الوصف</label>
+        <textarea class="input textarea" id="char-desc" placeholder="وصف تفصيلي للشخصية..."></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="saveCharacter()" id="char-save-btn">حفظ</button>
+        <button class="btn btn-secondary" onclick="closeModal('char-modal')">إلغاء</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/common.js"></script>
+  <script>
+    const p = params();
+    const novelId = parseInt(p.id);
+    let novel = null;
+    let currentUser = null;
+    let isOwner = false;
+    let chapters = [], chars = [];
+
+    if (!novelId) { window.location.href = '/index.html'; }
+
+    function switchTab(tab) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('tab-' + tab).classList.add('active');
+      document.getElementById('panel-' + tab).classList.add('active');
+    }
+
+    async function loadNovel() {
+      try {
+        novel = await api.get(`/api/novels/${novelId}`);
+        document.title = `راوي — ${novel.title}`;
+        renderHeader();
+        await Promise.all([loadChapters(), loadCharacters()]);
+      } catch (err) {
+        document.getElementById('novel-header').innerHTML =
+          `<div class="error-page"><div style="font-size:48px">⚠️</div><h2>${escHtml(err.message)}</h2><a href="/index.html" class="btn btn-primary" style="margin-top:12px">العودة للرئيسية</a></div>`;
+      }
+    }
+
+    function renderHeader() {
+      const h = document.getElementById('novel-header');
+      h.innerHTML = `<div class="novel-hero">
+        <div class="novel-hero-cover">
+          ${novel.coverUrl
+            ? `<img src="${escHtml(novel.coverUrl)}" style="width:100%;height:100%;object-fit:cover">`
+            : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:52px;background:linear-gradient(135deg,rgba(200,117,57,.18),rgba(200,117,57,.05))">📖</div>`
+          }
+        </div>
+        <div class="novel-hero-info">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+            ${statusBadge(novel.status)}
+            ${genreBadges(novel.genre)}
+          </div>
+          <h1 style="font-family:Amiri,serif;font-size:28px;font-weight:700;margin-bottom:8px;line-height:1.3">${escHtml(novel.title)}</h1>
+          ${novel.synopsis ? `<p style="font-size:15px;color:#666;line-height:1.8;margin-bottom:16px">${escHtml(novel.synopsis)}</p>` : ''}
+          <div style="font-size:13px;color:#aaa;margin-bottom:16px">${formatDate(novel.createdAt)}</div>
+          ${isOwner ? `<div style="display:flex;gap:10px;flex-wrap:wrap">
+            <button class="btn btn-outline btn-sm" onclick="editNovel()">تعديل التفاصيل</button>
+            <button class="btn btn-sm ${novel.status==='published'?'btn-secondary':'btn-primary'}" onclick="togglePublish()">
+              ${novel.status==='published'?'إلغاء النشر':'نشر الرواية'}
+            </button>
+            <a href="/read.html?id=${novelId}" class="btn btn-secondary btn-sm">👁 قراءة</a>
+          </div>` : `<a href="/read.html?id=${novelId}" class="btn btn-primary btn-sm">👁 قراءة</a>`}
+        </div>
+      </div>`;
+    }
+
+    async function loadChapters() {
+      const c = document.getElementById('chapters-container');
+      try {
+        chapters = await api.get(`/api/novels/${novelId}/chapters`);
+        if (!chapters.length) {
+          c.innerHTML = `<div class="empty-state">
+            <div class="empty-icon">📝</div>
+            <div class="empty-title">لا توجد فصول بعد</div>
+            ${isOwner ? `<button class="btn btn-primary" onclick="openChapterModal()" style="margin-top:8px">أضف أول فصل</button>` : ''}
+          </div>`;
+          return;
+        }
+        c.innerHTML = `
+          ${isOwner ? `<div style="margin-bottom:16px"><button class="btn btn-primary" onclick="openChapterModal()">+ فصل جديد</button></div>` : ''}
+          ${chapters.map(chapterItem).join('')}`;
+      } catch { c.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">فشل التحميل</div></div>'; }
+    }
+
+    function chapterItem(ch) {
+      return `<div class="list-item">
+        <div style="background:rgba(200,117,57,.1);color:#C87539;width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0">${ch.sequenceNumber}</div>
+        <div style="flex:1;min-width:0">
+          <div class="list-item-title">${escHtml(ch.title)}</div>
+          ${ch.outline ? `<div class="list-item-sub">${escHtml(ch.outline.substring(0,80))}...</div>` : ''}
+        </div>
+        <div class="list-item-actions">
+          ${isOwner ? `
+            <a href="/editor.html?novelId=${novelId}&chapterId=${ch.id}" class="btn btn-secondary btn-sm">تحرير</a>
+            <button class="btn btn-danger btn-icon btn-sm" onclick="deleteChapter(${ch.id})" title="حذف">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg>
+            </button>` : `<a href="/editor.html?novelId=${novelId}&chapterId=${ch.id}" class="btn btn-secondary btn-sm">عرض</a>`
+          }
+        </div>
+      </div>`;
+    }
+
+    async function loadCharacters() {
+      const c = document.getElementById('characters-container');
+      try {
+        chars = await api.get(`/api/novels/${novelId}/characters`);
+        if (!chars.length) {
+          c.innerHTML = `<div class="empty-state">
+            <div class="empty-icon">👥</div>
+            <div class="empty-title">لا توجد شخصيات بعد</div>
+            ${isOwner ? `<button class="btn btn-primary" onclick="openCharModal()" style="margin-top:8px">أضف شخصية</button>` : ''}
+          </div>`;
+          return;
+        }
+        c.innerHTML = `
+          ${isOwner ? `<div style="margin-bottom:16px"><button class="btn btn-primary" onclick="openCharModal()">+ شخصية جديدة</button></div>` : ''}
+          <div class="char-grid">${chars.map(charCard).join('')}</div>`;
+      } catch { c.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">فشل التحميل</div></div>'; }
+    }
+
+    function charCard(ch) {
+      return `<div class="char-card">
+        <div class="char-role-badge">${escHtml(ch.role || 'شخصية')}</div>
+        <div style="font-weight:700;font-size:16px;margin-bottom:6px">${escHtml(ch.name)}</div>
+        ${ch.traits ? `<div style="font-size:12px;color:#888;margin-bottom:8px">🔹 ${escHtml(ch.traits)}</div>` : ''}
+        ${ch.description ? `<div style="font-size:13px;color:#666;line-height:1.7">${escHtml(ch.description.substring(0,120))}...</div>` : ''}
+        ${isOwner ? `<div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn btn-secondary btn-sm" onclick="editChar(${ch.id})">تعديل</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteChar(${ch.id})">حذف</button>
+        </div>` : ''}
+      </div>`;
+    }
+
+    function openChapterModal(id) {
+      document.getElementById('chapter-id').value = id || '';
+      document.getElementById('chapter-modal-title').textContent = id ? 'تعديل الفصل' : 'فصل جديد';
+      if (!id) { document.getElementById('chapter-title').value = ''; document.getElementById('chapter-outline').value = ''; }
+      else {
+        const ch = chapters.find(c => c.id === id);
+        if (ch) { document.getElementById('chapter-title').value = ch.title; document.getElementById('chapter-outline').value = ch.outline || ''; }
+      }
+      openModal('chapter-modal');
+      setTimeout(() => document.getElementById('chapter-title').focus(), 100);
+    }
+
+    async function saveChapter() {
+      const btn = document.getElementById('chapter-save-btn');
+      const title = document.getElementById('chapter-title').value.trim();
+      const outline = document.getElementById('chapter-outline').value.trim();
+      const id = document.getElementById('chapter-id').value;
+      if (!title) { toast('أدخل عنوان الفصل', 'error'); return; }
+      setLoading(btn, true);
+      try {
+        if (id) {
+          await api.put(`/api/chapters/${id}`, { title, outline });
+          toast('تم تعديل الفصل');
+        } else {
+          const seq = chapters.length + 1;
+          await api.post(`/api/novels/${novelId}/chapters`, { title, outline, sequenceNumber: seq, content: '' });
+          toast('تم إضافة الفصل بنجاح');
+        }
+        closeModal('chapter-modal');
+        await loadChapters();
+      } catch (err) { toast(err.message, 'error'); }
+      setLoading(btn, false, 'حفظ');
+    }
+
+    async function deleteChapter(id) {
+      if (!await confirmDialog('هل تريد حذف هذا الفصل نهائياً؟')) return;
+      try { await api.delete(`/api/chapters/${id}`); toast('تم الحذف'); await loadChapters(); }
+      catch (err) { toast(err.message, 'error'); }
+    }
+
+    function openCharModal(id) {
+      document.getElementById('char-id').value = id || '';
+      document.getElementById('char-modal-title').textContent = id ? 'تعديل الشخصية' : 'شخصية جديدة';
+      if (!id) {
+        ['char-name','char-role','char-traits','char-desc'].forEach(i => document.getElementById(i).value = '');
+      } else {
+        const ch = chars.find(c => c.id === id);
+        if (ch) {
+          document.getElementById('char-name').value = ch.name || '';
+          document.getElementById('char-role').value = ch.role || '';
+          document.getElementById('char-traits').value = ch.traits || '';
+          document.getElementById('char-desc').value = ch.description || '';
+        }
+      }
+      openModal('char-modal');
+    }
+
+    function editChar(id) { openCharModal(id); }
+
+    async function saveCharacter() {
+      const btn = document.getElementById('char-save-btn');
+      const name = document.getElementById('char-name').value.trim();
+      const id = document.getElementById('char-id').value;
+      if (!name) { toast('أدخل اسم الشخصية', 'error'); return; }
+      setLoading(btn, true);
+      const data = { name, role: document.getElementById('char-role').value, traits: document.getElementById('char-traits').value, description: document.getElementById('char-desc').value };
+      try {
+        if (id) { await api.put(`/api/characters/${id}`, data); toast('تم التعديل'); }
+        else { await api.post(`/api/novels/${novelId}/characters`, data); toast('تمت الإضافة'); }
+        closeModal('char-modal');
+        await loadCharacters();
+      } catch (err) { toast(err.message, 'error'); }
+      setLoading(btn, false, 'حفظ');
+    }
+
+    async function deleteChar(id) {
+      if (!await confirmDialog('هل تريد حذف هذه الشخصية؟')) return;
+      try { await api.delete(`/api/characters/${id}`); toast('تم الحذف'); await loadCharacters(); }
+      catch (err) { toast(err.message, 'error'); }
+    }
+
+    async function togglePublish() {
+      const newStatus = novel.status === 'published' ? 'draft' : 'published';
+      try {
+        await api.put(`/api/novels/${novelId}`, { ...novel, status: newStatus });
+        novel.status = newStatus;
+        renderHeader();
+        toast(newStatus === 'published' ? 'تم نشر الرواية 🎉' : 'تم إلغاء النشر');
+      } catch (err) { toast(err.message, 'error'); }
+    }
+
+    async function editNovel() {
+      const title = prompt('عنوان الرواية:', novel.title);
+      if (!title) return;
+      try {
+        await api.put(`/api/novels/${novelId}`, { ...novel, title });
+        novel.title = title;
+        renderHeader();
+        toast('تم التعديل');
+      } catch (err) { toast(err.message, 'error'); }
+    }
+
+    async function generatePlot() {
+      const btn = document.getElementById('gen-plot-btn');
+      const genre = document.getElementById('ai-genre').value;
+      const theme = document.getElementById('ai-theme').value;
+      setLoading(btn, true);
+      try {
+        const result = await api.post('/api/ai/generate-plot', { genre, theme });
+        const out = document.getElementById('plot-result');
+        out.style.display = 'block';
+        out.textContent = result.plot || result.content || JSON.stringify(result);
+        toast('تم توليد الحبكة بنجاح ✨', 'success');
+      } catch (err) { toast(err.message, 'error'); }
+      setLoading(btn, false, 'توليد الحبكة');
+    }
+
+    (async () => {
+      currentUser = await getUser();
+      await initPage('home');
+      await loadNovel();
+      if (novel) isOwner = currentUser && (novel.authorId === null || novel.authorId === currentUser.id);
+      if (novel) renderHeader();
+      if (isOwner) {
+        const addChBtn = `<div style="margin-bottom:16px"><button class="btn btn-primary" onclick="openChapterModal()">+ فصل جديد</button></div>`;
+        const addCharBtn = `<div style="margin-bottom:16px"><button class="btn btn-primary" onclick="openCharModal()">+ شخصية جديدة</button></div>`;
+        if (chapters.length) document.getElementById('chapters-container').insertAdjacentHTML('afterbegin', addChBtn);
+        if (chars.length) document.getElementById('characters-container').insertAdjacentHTML('afterbegin', addCharBtn);
+      }
+    })();
+  </script>
+</body>
+</html>

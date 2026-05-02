@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>راوي — الملف الشخصي</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .profile-card { background:white; border-radius:24px; border:1px solid #e8e8e5; overflow:hidden; margin-bottom:32px; box-shadow:0 2px 16px rgba(0,0,0,.07); }
+    .profile-banner { height:180px; background:linear-gradient(135deg,rgba(200,117,57,.3),rgba(200,117,57,.08)); }
+    .profile-body { padding:20px 28px 28px; position:relative; }
+    .profile-avatar-wrap { position:absolute; top:-50px; right:24px; border-radius:50%; border:4px solid white; overflow:hidden; width:96px; height:96px; box-shadow:0 4px 16px rgba(0,0,0,.12); background:#C87539; display:flex; align-items:center; justify-content:center; font-size:36px; font-weight:700; color:white; }
+    .profile-info { padding-top:56px; }
+    .profile-name { font-family:Amiri,serif; font-size:26px; font-weight:700; }
+    .profile-bio { font-size:15px; color:#666; line-height:1.8; margin-top:6px; }
+    .stats-row { display:flex; gap:28px; margin-top:16px; flex-wrap:wrap; }
+  </style>
+</head>
+<body>
+  <header id="mobile-header">
+    <a href="/index.html" style="font-family:Amiri,serif;font-size:22px;font-weight:700;color:#C87539;text-decoration:none">راوي</a>
+    <div id="mobile-user-menu"></div>
+  </header>
+
+  <div class="app-layout">
+    <aside id="sidebar"></aside>
+    <main class="main-area">
+      <div class="content-wrapper">
+        <div id="profile-container"><div class="loading-center"><div class="spinner"></div></div></div>
+        <div id="novels-section" style="display:none">
+          <h2 style="font-family:Amiri,serif;font-size:22px;font-weight:700;margin-bottom:20px">📚 الروايات المنشورة</h2>
+          <div id="novels-grid"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <nav id="mobile-nav"></nav>
+  <div id="toast-container"></div>
+
+  <script src="/js/common.js"></script>
+  <script>
+    const pr = params();
+    const username = pr.username;
+    if (!username) { window.location.href = '/index.html'; }
+
+    async function load() {
+      const currentUser = await getUser();
+      try {
+        const data = await api.get(`/api/users/${encodeURIComponent(username)}/profile`);
+        document.title = `راوي — ${data.username}`;
+        const isSelf = currentUser && currentUser.id === data.id;
+        const pc = document.getElementById('profile-container');
+
+        const avatarContent = data.avatarUrl
+          ? `<img src="${escHtml(data.avatarUrl)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+          : `<span>${(data.username||'?')[0]}</span>`;
+
+        pc.innerHTML = `<div class="profile-card">
+          <div class="profile-banner"></div>
+          <div class="profile-body">
+            <div class="profile-avatar-wrap">${avatarContent}</div>
+            <div class="profile-info">
+              <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+                <div>
+                  <div class="profile-name">${escHtml(data.username)}</div>
+                  ${data.bio ? `<div class="profile-bio">${escHtml(data.bio)}</div>` : ''}
+                </div>
+                <div>
+                  ${isSelf
+                    ? `<a href="/settings.html" class="btn btn-secondary btn-sm">تعديل الملف</a>`
+                    : currentUser
+                      ? `<button class="btn ${data.isFollowing?'btn-secondary':'btn-primary'} btn-sm" onclick="toggleFollow(${data.id},'${escHtml(username)}')" id="follow-btn">
+                          ${data.isFollowing ? 'إلغاء المتابعة' : 'متابعة'}
+                        </button>`
+                      : `<a href="/auth.html" class="btn btn-primary btn-sm">تسجيل الدخول للمتابعة</a>`
+                  }
+                </div>
+              </div>
+              <div class="stats-row">
+                <div class="stat-item"><div class="stat-value">${data.followerCount || 0}</div><div class="stat-label">متابع</div></div>
+                <div class="stat-item"><div class="stat-value">${data.followingCount || 0}</div><div class="stat-label">يتابع</div></div>
+                <div class="stat-item"><div class="stat-value">${data.novels?.length || 0}</div><div class="stat-label">رواية</div></div>
+              </div>
+            </div>
+          </div>
+        </div>`;
+
+        if (data.novels && data.novels.length > 0) {
+          const ns = document.getElementById('novels-section');
+          ns.style.display = 'block';
+          document.getElementById('novels-grid').innerHTML =
+            `<div class="novel-grid">${data.novels.map(n => `
+              <div class="card">
+                <a href="/read.html?id=${n.id}" style="display:block;aspect-ratio:3/4;overflow:hidden">
+                  ${n.coverUrl ? `<img src="${escHtml(n.coverUrl)}" style="width:100%;height:100%;object-fit:cover">` : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:48px;background:linear-gradient(135deg,rgba(200,117,57,.18),rgba(200,117,57,.05))">📖</div>`}
+                </a>
+                <div class="card-body">
+                  <h3 style="font-family:Amiri,serif;font-size:16px;font-weight:700;margin-bottom:4px">${escHtml(n.title)}</h3>
+                  <div>${genreBadges(n.genre)}</div>
+                  <div style="display:flex;gap:10px;font-size:12px;color:#aaa;margin-top:6px"><span>👁 ${n.views||0}</span><span>❤️ ${n.likes||0}</span></div>
+                </div>
+              </div>`).join('')}</div>`;
+        }
+      } catch (err) {
+        document.getElementById('profile-container').innerHTML =
+          `<div class="error-page"><div style="font-size:48px">👤</div><h2>المستخدم غير موجود</h2><a href="/library.html" class="btn btn-primary" style="margin-top:12px">المكتبة</a></div>`;
+      }
+    }
+
+    async function toggleFollow(userId, uname) {
+      const btn = document.getElementById('follow-btn');
+      const isFollowing = btn.textContent.includes('إلغاء');
+      try {
+        if (isFollowing) {
+          await api.delete(`/api/users/${encodeURIComponent(uname)}/follow`);
+          btn.textContent = 'متابعة'; btn.className = 'btn btn-primary btn-sm';
+          toast('تم إلغاء المتابعة');
+        } else {
+          await api.post(`/api/users/${encodeURIComponent(uname)}/follow`);
+          btn.textContent = 'إلغاء المتابعة'; btn.className = 'btn btn-secondary btn-sm';
+          toast('تمت المتابعة ✓');
+        }
+      } catch (err) { toast(err.message, 'error'); }
+    }
+
+    (async () => {
+      await initPage('profile');
+      await load();
+    })();
+  </script>
+</body>
+</html>

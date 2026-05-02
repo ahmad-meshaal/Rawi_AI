@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>راوي — محرر الفصول</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    body { background: #f5f4f1; }
+    .editor-topbar {
+      position: sticky; top: 0; z-index: 20;
+      background: white; border-bottom: 1px solid #e8e8e5;
+      padding: 14px 24px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+      box-shadow: 0 1px 8px rgba(0,0,0,.06);
+    }
+    .editor-title-input {
+      flex: 1; min-width: 200px; border: none; outline: none; font-size: 18px;
+      font-family: 'Amiri',serif; font-weight: 700; background: transparent;
+      color: #22262A; direction: rtl;
+    }
+    .editor-title-input::placeholder { color: #bbb; }
+    .editor-area { max-width: 780px; margin: 40px auto; padding: 0 24px 120px; }
+    .editor-textarea {
+      width: 100%; min-height: calc(100vh - 260px); padding: 32px 36px;
+      border: none; border-radius: 20px; background: white;
+      font-family: 'Amiri',serif; font-size: 20px; line-height: 2.2;
+      color: #1a1a1a; direction: rtl; resize: none; outline: none;
+      box-shadow: 0 2px 20px rgba(0,0,0,.07);
+    }
+    .editor-textarea::placeholder { color: #ccc; font-size: 18px; }
+    .ai-panel {
+      background: white; border-radius: 20px; border: 1px solid #e8e8e5;
+      padding: 24px; margin-top: 20px; box-shadow: 0 2px 12px rgba(0,0,0,.06);
+    }
+    .word-count { font-size: 12px; color: #aaa; }
+    @media (max-width: 767px) {
+      .editor-topbar { padding: 10px 14px; }
+      .editor-area { padding: 0 8px 100px; margin: 16px auto; }
+      .editor-textarea { padding: 20px; font-size: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="editor-topbar">
+    <a href="javascript:history.back()" style="color:#888;text-decoration:none;display:flex;align-items:center;gap:4px;white-space:nowrap;font-size:14px">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+      رجوع
+    </a>
+    <input class="editor-title-input" id="chapter-title" placeholder="عنوان الفصل..." autocomplete="off">
+    <div class="word-count" id="word-count">0 كلمة</div>
+    <button class="btn btn-secondary btn-sm" onclick="toggleAiPanel()">✨ AI</button>
+    <button class="btn btn-primary btn-sm" onclick="saveChapter()" id="save-btn" data-testid="btn-save">حفظ</button>
+    <div id="save-status" style="font-size:13px;color:#16a34a;display:none">✓ تم الحفظ</div>
+  </div>
+
+  <div class="editor-area">
+    <textarea
+      class="editor-textarea"
+      id="editor"
+      placeholder="ابدأ الكتابة هنا... اترك الأفكار تتدفق."
+      data-testid="editor-textarea"
+    ></textarea>
+
+    <div class="ai-panel" id="ai-panel" style="display:none">
+      <h3 style="font-family:Amiri,serif;font-size:18px;margin-bottom:6px">✨ توليد محتوى بالذكاء الاصطناعي</h3>
+      <p style="font-size:13px;color:#888;margin-bottom:16px">سيكتب الذكاء الاصطناعي محتوى الفصل بناءً على الملخص أدناه</p>
+      <div class="form-group">
+        <label class="label">ملخص الفصل</label>
+        <textarea class="input textarea" id="ai-outline" placeholder="ما الذي يحدث في هذا الفصل؟ اذكر الأحداث الرئيسية والشخصيات..." style="min-height:90px"></textarea>
+      </div>
+      <button class="btn btn-primary" onclick="generateContent()" id="gen-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 8v4l3 3"/><path d="M18.5 2.5 22 6l-7 7"/></svg>
+        توليد المحتوى
+      </button>
+      <div id="gen-progress" style="display:none;margin-top:16px">
+        <div style="height:4px;background:#f0ede9;border-radius:999px;overflow:hidden">
+          <div id="gen-bar" style="height:100%;background:#C87539;width:0%;transition:width .4s;border-radius:999px"></div>
+        </div>
+        <div style="font-size:13px;color:#888;margin-top:6px">الذكاء الاصطناعي يكتب الآن...</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+  <script src="/js/common.js"></script>
+  <script>
+    const pr = params();
+    const novelId = parseInt(pr.novelId);
+    const chapterId = parseInt(pr.chapterId);
+    let chapter = null;
+    let autoSaveTimer = null;
+
+    if (!novelId || !chapterId) { window.location.href = '/index.html'; }
+
+    async function load() {
+      try {
+        const user = await requireAuth();
+        if (!user) return;
+        chapter = await api.get(`/api/chapters/${chapterId}`);
+        document.getElementById('chapter-title').value = chapter.title || '';
+        document.getElementById('editor').value = chapter.content || '';
+        document.getElementById('ai-outline').value = chapter.outline || '';
+        updateWordCount();
+        document.title = `راوي — ${chapter.title}`;
+      } catch (err) {
+        toast('فشل تحميل الفصل: ' + err.message, 'error');
+      }
+    }
+
+    function updateWordCount() {
+      const text = document.getElementById('editor').value;
+      const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+      document.getElementById('word-count').textContent = `${words} كلمة`;
+    }
+
+    document.getElementById('editor').addEventListener('input', () => {
+      updateWordCount();
+      clearTimeout(autoSaveTimer);
+      autoSaveTimer = setTimeout(() => saveChapter(true), 3000);
+    });
+
+    async function saveChapter(silent = false) {
+      const btn = document.getElementById('save-btn');
+      const title = document.getElementById('chapter-title').value.trim() || 'فصل بدون عنوان';
+      const content = document.getElementById('editor').value;
+      const outline = document.getElementById('ai-outline').value;
+      if (!silent) setLoading(btn, true);
+      try {
+        await api.put(`/api/chapters/${chapterId}`, { title, content, outline, sequenceNumber: chapter?.sequenceNumber || 1 });
+        if (silent) {
+          const s = document.getElementById('save-status');
+          s.style.display = 'block';
+          setTimeout(() => s.style.display = 'none', 2000);
+        } else {
+          toast('تم الحفظ بنجاح ✓', 'success');
+          setLoading(btn, false, 'حفظ');
+        }
+      } catch (err) {
+        toast(err.message, 'error');
+        if (!silent) setLoading(btn, false, 'حفظ');
+      }
+    }
+
+    function toggleAiPanel() {
+      const p = document.getElementById('ai-panel');
+      p.style.display = p.style.display === 'none' ? 'block' : 'none';
+    }
+
+    async function generateContent() {
+      const btn = document.getElementById('gen-btn');
+      const outline = document.getElementById('ai-outline').value.trim();
+      const title = document.getElementById('chapter-title').value.trim();
+      if (!outline) { toast('أدخل ملخص الفصل أولاً', 'error'); return; }
+
+      const progress = document.getElementById('gen-progress');
+      const bar = document.getElementById('gen-bar');
+      setLoading(btn, true);
+      progress.style.display = 'block';
+      bar.style.width = '0%';
+
+      const anim = setInterval(() => {
+        const w = parseFloat(bar.style.width) || 0;
+        if (w < 80) bar.style.width = (w + Math.random() * 5) + '%';
+      }, 500);
+
+      try {
+        const result = await api.post('/api/ai/generate-chapter', {
+          novelId, chapterTitle: title, outline, previousChapterContent: ''
+        });
+        clearInterval(anim);
+        bar.style.width = '100%';
+        setTimeout(() => progress.style.display = 'none', 600);
+
+        const editor = document.getElementById('editor');
+        if (editor.value.trim()) {
+          if (await confirmDialog('هل تريد استبدال المحتوى الحالي بالمحتوى المُولَّد؟')) {
+            editor.value = result.content;
+          } else {
+            editor.value += '\n\n' + result.content;
+          }
+        } else {
+          editor.value = result.content;
+        }
+        updateWordCount();
+        toast('تم توليد المحتوى بنجاح ✨', 'success');
+      } catch (err) {
+        clearInterval(anim);
+        progress.style.display = 'none';
+        toast(err.message, 'error');
+      }
+      setLoading(btn, false, 'توليد المحتوى');
+    }
+
+    // Keyboard shortcut: Ctrl+S / Cmd+S
+    document.addEventListener('keydown', e => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        saveChapter();
+      }
+    });
+
+    load();
+  </script>
+</body>
+</html>

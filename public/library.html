@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>راوي — المكتبة</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .search-bar { display:flex; gap:10px; margin-bottom:28px; }
+    .lib-filters { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:24px; }
+    .filter-btn { padding:7px 16px; border-radius:999px; border:1.5px solid #e5e7eb; background:white; font-size:13px; cursor:pointer; font-family:'Noto Sans Arabic',sans-serif; transition:all .15s; color:#555; }
+    .filter-btn.active { background:#C87539; color:white; border-color:#C87539; }
+    .novel-stats { display:flex; gap:12px; align-items:center; font-size:13px; color:#888; }
+  </style>
+</head>
+<body>
+  <header id="mobile-header">
+    <a href="/index.html" style="font-family:Amiri,serif;font-size:22px;font-weight:700;color:#C87539;text-decoration:none">راوي</a>
+    <div id="mobile-user-menu"></div>
+  </header>
+
+  <div class="app-layout">
+    <aside id="sidebar"></aside>
+    <main class="main-area">
+      <div class="content-wrapper">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">📚 المكتبة العامة</h1>
+            <p class="page-subtitle">اكتشف روايات مميزة من كُتّاب موهوبين</p>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <button class="btn btn-secondary" onclick="openModal('pdf-modal')" data-testid="btn-import-pdf">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+              نشر من PDF
+            </button>
+          </div>
+        </div>
+
+        <div class="search-bar">
+          <input class="input" id="search-input" placeholder="ابحث عن رواية أو كاتب..." oninput="filterNovels()" data-testid="input-search" style="flex:1">
+        </div>
+
+        <div class="lib-filters" id="genre-filters">
+          <button class="filter-btn active" onclick="setGenre('')" data-genre="">الكل</button>
+        </div>
+
+        <div id="novels-container">
+          <div class="loading-center"><div class="spinner"></div></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <nav id="mobile-nav"></nav>
+  <div id="toast-container"></div>
+
+  <!-- PDF Import Modal -->
+  <div class="modal-overlay" id="pdf-modal" onclick="if(event.target===this)closeModal('pdf-modal')">
+    <div class="modal-box">
+      <h2 class="modal-title">📄 نشر رواية من PDF</h2>
+      <p style="font-size:14px;color:#888;margin-bottom:24px;line-height:1.7">ارفع ملف PDF وسيتم استيراد محتوى الرواية تلقائياً وإنشاء الفصول منها</p>
+      <form id="pdf-form">
+        <div class="form-group">
+          <label class="label">عنوان الرواية *</label>
+          <input class="input" id="pdf-title" placeholder="اكتب عنوان الرواية" required autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label class="label">التصنيف</label>
+          <input class="input" id="pdf-genre" placeholder="مثال: دراما، رومانسي" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label class="label">ملف PDF *</label>
+          <label class="cover-upload-area" style="aspect-ratio:unset;padding:24px;max-width:100%" for="pdf-file-input">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <span id="pdf-file-label">اضغط لاختيار ملف PDF</span>
+            <input type="file" id="pdf-file-input" accept=".pdf,application/pdf" style="display:none" onchange="updatePdfLabel(this)">
+          </label>
+        </div>
+        <div id="pdf-progress" style="display:none;margin-bottom:16px">
+          <div style="height:6px;background:#f0ede9;border-radius:999px;overflow:hidden">
+            <div id="pdf-bar" style="height:100%;background:#C87539;width:0%;transition:width .3s;border-radius:999px"></div>
+          </div>
+          <div id="pdf-status" style="font-size:13px;color:#888;margin-top:6px;text-align:center">جارٍ المعالجة...</div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary" id="pdf-submit-btn">نشر الرواية</button>
+          <button type="button" class="btn btn-secondary" onclick="closeModal('pdf-modal')">إلغاء</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/js/common.js"></script>
+  <script>
+    let allNovels = [];
+    let activeGenre = '';
+
+    function updatePdfLabel(input) {
+      const label = document.getElementById('pdf-file-label');
+      if (input.files[0]) label.textContent = input.files[0].name;
+    }
+
+    async function loadNovels() {
+      try {
+        allNovels = await api.get('/api/novels/published');
+        buildGenreFilters();
+        renderNovels(allNovels);
+      } catch (err) {
+        document.getElementById('novels-container').innerHTML =
+          `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">${escHtml(err.message)}</div></div>`;
+      }
+    }
+
+    function buildGenreFilters() {
+      const genres = new Set();
+      allNovels.forEach(n => { if (n.genre) n.genre.split(/[,،]/).forEach(g => genres.add(g.trim())); });
+      const container = document.getElementById('genre-filters');
+      const extra = [...genres].slice(0,8).map(g =>
+        `<button class="filter-btn" onclick="setGenre('${escHtml(g)}')" data-genre="${escHtml(g)}">${escHtml(g)}</button>`
+      ).join('');
+      container.innerHTML = `<button class="filter-btn ${!activeGenre?'active':''}" onclick="setGenre('')" data-genre="">الكل</button>` + extra;
+    }
+
+    function setGenre(genre) {
+      activeGenre = genre;
+      document.querySelectorAll('.filter-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.genre === genre);
+      });
+      filterNovels();
+    }
+
+    function filterNovels() {
+      const q = document.getElementById('search-input').value.trim().toLowerCase();
+      let filtered = allNovels;
+      if (activeGenre) filtered = filtered.filter(n => n.genre && n.genre.toLowerCase().includes(activeGenre.toLowerCase()));
+      if (q) filtered = filtered.filter(n =>
+        n.title.toLowerCase().includes(q) ||
+        (n.authorUsername || '').toLowerCase().includes(q) ||
+        (n.synopsis || '').toLowerCase().includes(q)
+      );
+      renderNovels(filtered);
+    }
+
+    function renderNovels(novels) {
+      const c = document.getElementById('novels-container');
+      if (!novels.length) {
+        c.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-title">لا توجد روايات</div><div class="empty-desc">لم يتم نشر أي رواية حتى الآن</div></div>`;
+        return;
+      }
+      c.innerHTML = `<div class="novel-grid">${novels.map(novelCard).join('')}</div>`;
+    }
+
+    function novelCard(n) {
+      return `<div class="card" data-testid="card-library-${n.id}">
+        <a href="/read.html?id=${n.id}" style="display:block;aspect-ratio:3/4;position:relative;overflow:hidden">
+          ${n.coverUrl
+            ? `<img src="${escHtml(n.coverUrl)}" style="width:100%;height:100%;object-fit:cover">`
+            : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:52px;background:linear-gradient(135deg,rgba(200,117,57,.18),rgba(200,117,57,.05))">📖</div>`
+          }
+        </a>
+        <div class="card-body">
+          <a href="/read.html?id=${n.id}" style="text-decoration:none">
+            <h3 style="font-family:Amiri,serif;font-size:17px;font-weight:700;margin-bottom:4px;color:#22262A">${escHtml(n.title)}</h3>
+          </a>
+          ${n.authorUsername ? `<a href="/profile.html?username=${encodeURIComponent(n.authorUsername)}" style="font-size:13px;color:#C87539;text-decoration:none;display:flex;align-items:center;gap:6px;margin-bottom:6px">${avatarHtml({username:n.authorUsername,avatarUrl:n.authorAvatarUrl},20)} ${escHtml(n.authorUsername)}</a>` : ''}
+          <div style="margin-bottom:8px">${genreBadges(n.genre)}</div>
+          <div class="novel-stats">
+            <span>👁 ${n.views||0}</span>
+            <span>❤️ ${n.likes||0}</span>
+          </div>
+          <div style="margin-top:10px">
+            <a href="/read.html?id=${n.id}" class="btn btn-primary btn-sm" style="width:100%;justify-content:center">اقرأ الآن</a>
+          </div>
+        </div>
+      </div>`;
+    }
+
+    document.getElementById('pdf-form').onsubmit = async (e) => {
+      e.preventDefault();
+      const user = await getUser();
+      if (!user) { window.location.href = '/auth.html'; return; }
+      const fileInput = document.getElementById('pdf-file-input');
+      if (!fileInput.files[0]) { toast('اختر ملف PDF أولاً', 'error'); return; }
+
+      const btn = document.getElementById('pdf-submit-btn');
+      const progress = document.getElementById('pdf-progress');
+      const bar = document.getElementById('pdf-bar');
+      const status = document.getElementById('pdf-status');
+
+      setLoading(btn, true);
+      progress.style.display = 'block';
+
+      const anim = setInterval(() => {
+        const w = parseInt(bar.style.width) || 0;
+        if (w < 85) bar.style.width = (w + Math.random() * 8) + '%';
+      }, 400);
+
+      const form = new FormData();
+      form.append('pdf', fileInput.files[0]);
+      form.append('title', document.getElementById('pdf-title').value.trim());
+      form.append('genre', document.getElementById('pdf-genre').value.trim());
+
+      try {
+        status.textContent = 'جارٍ قراءة وتحليل الملف...';
+        const res = await fetch('/api/novels/import-pdf', { method:'POST', body: form, credentials:'include' });
+        const json = await res.json();
+        clearInterval(anim);
+        if (!res.ok) throw new Error(json.message || 'فشل الاستيراد');
+        bar.style.width = '100%';
+        status.textContent = 'تم بنجاح! جارٍ التحويل...';
+        await new Promise(r => setTimeout(r, 800));
+        toast('تم نشر الرواية بنجاح! 🎉', 'success');
+        closeModal('pdf-modal');
+        window.location.href = `/novel.html?id=${json.novelId}`;
+      } catch (err) {
+        clearInterval(anim);
+        toast(err.message, 'error');
+        setLoading(btn, false, 'نشر الرواية');
+        progress.style.display = 'none';
+      }
+    };
+
+    (async () => {
+      await initPage('library');
+      await loadNovels();
+    })();
+  </script>
+</body>
+</html>

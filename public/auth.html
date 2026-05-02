@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>راوي — تسجيل الدخول</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    body { margin: 0; min-height: 100vh; display: flex; background: #FAF9F6; }
+    .auth-brand {
+      width: 420px; flex-shrink: 0;
+      background: linear-gradient(160deg, #C87539 0%, #A85E28 100%);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 48px 40px; color: white; position: sticky; top: 0; height: 100vh;
+    }
+    .auth-brand-logo { font-family: Amiri,serif; font-size: 52px; font-weight: 700; margin-bottom: 16px; }
+    .auth-brand-sub { font-size: 18px; opacity: .85; margin-bottom: 48px; }
+    .auth-feature { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 20px; }
+    .auth-feature-icon { background: rgba(255,255,255,.2); border-radius: 10px; padding: 8px; flex-shrink: 0; }
+    .auth-feature-text { font-size: 15px; opacity: .9; line-height: 1.6; }
+    .auth-form-side {
+      flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px 24px;
+    }
+    .auth-box { width: 100%; max-width: 420px; }
+    .auth-tabs { display: flex; gap: 0; border-bottom: 2px solid #e5e7eb; margin-bottom: 32px; }
+    .auth-tab { flex: 1; padding: 12px; border: none; background: none; font-size: 15px; font-family: 'Noto Sans Arabic',sans-serif; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all .15s; font-weight: 500; color: #888; }
+    .auth-tab.active { color: #C87539; border-bottom-color: #C87539; font-weight: 700; }
+    .auth-panel { display: none; }
+    .auth-panel.active { display: block; }
+    @media (max-width: 768px) { .auth-brand { display: none; } body { display: block; } .auth-form-side { min-height: 100vh; } }
+  </style>
+</head>
+<body>
+  <!-- Branding Panel -->
+  <div class="auth-brand">
+    <div class="auth-brand-logo">📖 راوي</div>
+    <div class="auth-brand-sub">منصة الكتابة الإبداعية</div>
+    <div class="auth-feature">
+      <div class="auth-feature-icon">✨</div>
+      <div class="auth-feature-text">اكتب روايتك بمساعدة الذكاء الاصطناعي</div>
+    </div>
+    <div class="auth-feature">
+      <div class="auth-feature-icon">📚</div>
+      <div class="auth-feature-text">نظّم فصولك وشخصياتك في مكان واحد</div>
+    </div>
+    <div class="auth-feature">
+      <div class="auth-feature-icon">🌍</div>
+      <div class="auth-feature-text">انشر روايتك وشارك القراء حول العالم</div>
+    </div>
+    <div class="auth-feature">
+      <div class="auth-feature-icon">📄</div>
+      <div class="auth-feature-text">استورد رواياتك من ملفات PDF بضغطة واحدة</div>
+    </div>
+  </div>
+
+  <!-- Form Side -->
+  <div class="auth-form-side">
+    <div class="auth-box">
+      <div style="text-align:center;margin-bottom:28px">
+        <div style="font-family:Amiri,serif;font-size:32px;font-weight:700;color:#C87539">راوي</div>
+        <div style="font-size:14px;color:#888;margin-top:4px">منصة الكتابة الإبداعية</div>
+      </div>
+
+      <div class="auth-tabs">
+        <button class="auth-tab active" onclick="switchTab('login')" id="tab-login">تسجيل الدخول</button>
+        <button class="auth-tab" onclick="switchTab('signup')" id="tab-signup">إنشاء حساب</button>
+      </div>
+
+      <!-- Login -->
+      <div class="auth-panel active" id="panel-login">
+        <form id="login-form">
+          <div class="form-group">
+            <label class="label">اسم المستخدم</label>
+            <input class="input" id="login-username" type="text" placeholder="أدخل اسم المستخدم" autocomplete="username" required data-testid="input-username">
+          </div>
+          <div class="form-group">
+            <label class="label">كلمة المرور</label>
+            <input class="input" id="login-password" type="password" placeholder="أدخل كلمة المرور" autocomplete="current-password" required data-testid="input-password">
+          </div>
+          <div id="login-error" style="color:#dc2626;font-size:14px;margin-bottom:12px;display:none"></div>
+          <button type="submit" class="btn btn-primary btn-lg" style="width:100%;justify-content:center;margin-top:8px" data-testid="btn-login">دخول</button>
+        </form>
+        <p style="text-align:center;margin-top:20px;font-size:14px;color:#888">
+          ليس لديك حساب؟ <a href="#" onclick="switchTab('signup')" style="color:#C87539;font-weight:600">أنشئ حساباً الآن</a>
+        </p>
+      </div>
+
+      <!-- Signup -->
+      <div class="auth-panel" id="panel-signup">
+        <form id="signup-form">
+          <div class="form-group">
+            <label class="label">اسم المستخدم</label>
+            <input class="input" id="signup-username" type="text" placeholder="اختر اسم المستخدم" autocomplete="username" required data-testid="input-new-username">
+          </div>
+          <div class="form-group">
+            <label class="label">البريد الإلكتروني</label>
+            <input class="input" id="signup-email" type="email" placeholder="أدخل بريدك الإلكتروني" autocomplete="email" required data-testid="input-email">
+          </div>
+          <div class="form-group">
+            <label class="label">كلمة المرور</label>
+            <input class="input" id="signup-password" type="password" placeholder="اختر كلمة مرور قوية" autocomplete="new-password" required minlength="6" data-testid="input-new-password">
+          </div>
+          <div id="signup-error" style="color:#dc2626;font-size:14px;margin-bottom:12px;display:none"></div>
+          <button type="submit" class="btn btn-primary btn-lg" style="width:100%;justify-content:center;margin-top:8px" data-testid="btn-signup">إنشاء الحساب</button>
+        </form>
+        <p style="text-align:center;margin-top:20px;font-size:14px;color:#888">
+          لديك حساب بالفعل؟ <a href="#" onclick="switchTab('login')" style="color:#C87539;font-weight:600">سجّل دخولك</a>
+        </p>
+      </div>
+
+      <div style="text-align:center;margin-top:32px;font-size:12px;color:#bbb">
+        <a href="/privacy.html" style="color:#bbb;text-decoration:none">سياسة الخصوصية</a> &nbsp;|&nbsp;
+        <a href="/terms.html" style="color:#bbb;text-decoration:none">الشروط والأحكام</a>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+  <script src="/js/common.js"></script>
+  <script>
+    // Auto-detect tab from URL
+    const p = params();
+    if (p.tab === 'signup') switchTab('signup');
+
+    function switchTab(tab) {
+      document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.auth-panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('tab-' + tab).classList.add('active');
+      document.getElementById('panel-' + tab).classList.add('active');
+    }
+
+    document.getElementById('login-form').onsubmit = async (e) => {
+      e.preventDefault();
+      const errEl = document.getElementById('login-error');
+      const btn = e.target.querySelector('button[type=submit]');
+      errEl.style.display = 'none';
+      setLoading(btn, true);
+      try {
+        await api.post('/api/auth/login', {
+          username: document.getElementById('login-username').value.trim(),
+          password: document.getElementById('login-password').value,
+        });
+        window.location.href = '/index.html';
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.style.display = 'block';
+        setLoading(btn, false, 'دخول');
+      }
+    };
+
+    document.getElementById('signup-form').onsubmit = async (e) => {
+      e.preventDefault();
+      const errEl = document.getElementById('signup-error');
+      const btn = e.target.querySelector('button[type=submit]');
+      errEl.style.display = 'none';
+      setLoading(btn, true);
+      try {
+        await api.post('/api/auth/signup', {
+          username: document.getElementById('signup-username').value.trim(),
+          email: document.getElementById('signup-email').value.trim(),
+          password: document.getElementById('signup-password').value,
+        });
+        window.location.href = '/index.html';
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.style.display = 'block';
+        setLoading(btn, false, 'إنشاء الحساب');
+      }
+    };
+
+    // Redirect if already logged in
+    getUser().then(u => { if (u) window.location.href = '/index.html'; });
+  </script>
+</body>
+</html>
